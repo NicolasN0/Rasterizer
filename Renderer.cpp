@@ -111,9 +111,14 @@ void dae::Renderer::Render_W1_Part1()
 
 
 		Vector2 a = Vector2{screenCoor[1].x,screenCoor[1].y} - Vector2{ screenCoor[0].x,screenCoor[0].y };
-		Vector2 b = Vector2{ screenCoor[2].x,screenCoor[2].y } - Vector2{ screenCoor[0].x,screenCoor[0].y };
+		Vector2 b = Vector2{ screenCoor[2].x,screenCoor[2].y } - Vector2{ screenCoor[1].x,screenCoor[1].y };
+		Vector2 c = Vector2{ screenCoor[0].x,screenCoor[0].y } - Vector2{ screenCoor[2].x,screenCoor[2].y };
 
+		Vector2 triangleV1 = { screenCoor[0].x,screenCoor[0].y };
+		Vector2 triangleV2 = { screenCoor[1].x,screenCoor[1].y };
+		Vector2 triangleV3 = { screenCoor[2].x,screenCoor[2].y };
 
+		//Vector3 center{ (screenCoor[0] + screenCoor[1] + screenCoor[2]) / 3 };
 		
 		//for every vertice
 		for(int j{}; j < screenCoor.size();j++)
@@ -129,18 +134,54 @@ void dae::Renderer::Render_W1_Part1()
 					gradient /= 2.0f;
 
 					//make vector from pixel to vertice
-					Vector2 pixelPoint{ px - screenCoor[j].x,py - screenCoor[j].y };
+					//Vector2 pixelPoint{ px - screenCoor[j].x,py - screenCoor[j].y };
+					//test with middle
+					//Vector2 pixelPoint{ px - center.x,py - center.y };
+
 
 					//cross product this vector to both the vectors that the triangle makes
 					//if both true color white.
 
+					Vector2 p{ float(px),float(py) };
+
+					
+
+					Vector2 pointToSide = p - triangleV1;
+
+					float signedArea1 = Vector2::Cross(a, pointToSide);
+
+					pointToSide = p - triangleV2;
+					float signedArea2 = Vector2::Cross(b, pointToSide);
+
+					pointToSide = p - triangleV3;
+					float signedArea3 = Vector2::Cross(c, pointToSide);
 
 
-					float signedArea1 = Vector2::Cross(a, pixelPoint);
-					float signedArea2 = Vector2::Cross(pixelPoint, b);
+					//Raytraycer
+
+					/*Vector3 edgeA = triangle.v1 - triangle.v0;
+					Vector3 pointToSide = p - triangle.v0;
+					if (Vector3::Dot(normal, Vector3::Cross(edgeA, pointToSide)) < 0)
+					{
+						return false;
+					}
+
+					Vector3 edgeB = triangle.v2 - triangle.v1;
+					pointToSide = p - triangle.v1;
+					if (Vector3::Dot(normal, Vector3::Cross(edgeB, pointToSide)) < 0)
+					{
+						return false;
+					}
+
+					Vector3 edgeC = triangle.v0 - triangle.v2;
+					pointToSide = p - triangle.v2;
+					if (Vector3::Dot(normal, Vector3::Cross(edgeC, pointToSide)) < 0)
+					{
+						return false;
+					}*/
 
 					ColorRGB finalColor{};
-					if(signedArea1 > 0 && signedArea2 > 0)
+					if(signedArea1 > 0 && signedArea2 > 0 && signedArea3 > 0)
 					{
 						finalColor = ColorRGB{ 1,1,1 };
 					}else
