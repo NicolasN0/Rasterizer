@@ -69,7 +69,8 @@ void Renderer::Render()
 	//}
 	//Render_W1_Part1();
 	//Render_W1_Part2();
-	Render_W1_Part3();
+	//Render_W1_Part3();
+	Render_W1_Part4();
 	//@END
 	//Update SDL Surface
 	SDL_UnlockSurface(m_pBackBuffer);
@@ -397,6 +398,131 @@ void dae::Renderer::Render_W1_Part3()
 					ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
 					finalColor = interpolated;
 					//finalColor = ColorRGB{ 1,1,1 };
+				}
+				else
+				{
+					finalColor = ColorRGB{ 0,0,0 };
+
+				}
+
+
+				//Update Color in Buffer
+				finalColor.MaxToOne();
+
+				m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+					static_cast<uint8_t>(finalColor.r * 255),
+					static_cast<uint8_t>(finalColor.g * 255),
+					static_cast<uint8_t>(finalColor.b * 255));
+			}
+		}
+
+
+	}
+}
+
+void dae::Renderer::Render_W1_Part4()
+{
+	const int size{ m_Width * m_Height };
+	std::vector<std::vector<Vertex>> triangles;
+	//CreateTriangle
+	std::vector<Vertex> vertices_ndcSmall
+	{
+		{{0.f,2.f,0.f},ColorRGB{1,1,1}},
+		{{1.f,0.f,0.f},ColorRGB{1,1,1}},
+		{{-1.f,0.f,0.f},ColorRGB{1,1,1}}
+	};
+	std::vector<Vertex> vertices_ndc
+	{
+		{{0.f,4.f,2.f},ColorRGB{1,0,0}},
+		{{3.f,-2.f,2.f},ColorRGB{0,1,0}},
+		{{-3.f,-2.f,2.f},ColorRGB{0,0,1}}
+	};
+
+	triangles.push_back(vertices_ndcSmall);
+	triangles.push_back(vertices_ndc);
+	//Make depthBuffer and fill with max value floates
+	std::vector<float> depthBuffer;
+	for(int i{};i < m_Width* m_Height;i++)
+	{
+		depthBuffer.push_back(FLT_MAX);
+	}
+	//ColorBuffer? No idea how else;
+	std::vector<ColorRGB> ColorBuffer;
+	for (int i{}; i < m_Width * m_Height; i++)
+	{
+		ColorBuffer.push_back(colors::Black);
+	}
+
+	//loop over all triangles
+	for (int i{}; i < triangles.size(); i++)
+	{
+		//Convert Poins To screenSpace (raster space)
+		std::vector<Vertex> newTriangle;
+		VertexTransformationFunction(triangles[i], newTriangle);
+		//create the triangle side vectors
+
+
+		Vector2 a = Vector2{ newTriangle[1].position.x,newTriangle[1].position.y } - Vector2{ newTriangle[0].position.x,newTriangle[0].position.y };
+		Vector2 b = Vector2{ newTriangle[2].position.x,newTriangle[2].position.y } - Vector2{ newTriangle[1].position.x,newTriangle[1].position.y };
+		Vector2 c = Vector2{ newTriangle[0].position.x,newTriangle[0].position.y } - Vector2{ newTriangle[2].position.x,newTriangle[2].position.y };
+
+		Vector2 triangleV1 = { newTriangle[0].position.x,newTriangle[0].position.y };
+		Vector2 triangleV2 = { newTriangle[1].position.x,newTriangle[1].position.y };
+		Vector2 triangleV3 = { newTriangle[2].position.x,newTriangle[2].position.y };
+
+		float W0;
+		float W1;
+		float W2;
+
+		Vector2 edge = Vector2{ newTriangle[2].position.x,newTriangle[2].position.y } - Vector2{ newTriangle[0].position.x,newTriangle[0].position.y };
+		float totalArea = Vector2::Cross(a, edge);
+
+		for (int px{}; px < m_Width; ++px)
+		{
+			for (int py{}; py < m_Height; ++py)
+			{
+				float gradient = px / static_cast<float>(m_Width);
+				gradient += py / static_cast<float>(m_Width);
+				gradient /= 2.0f;
+
+
+				Vector2 p{ float(px),float(py) };
+
+
+
+				Vector2 pointToSide = p - triangleV1;
+
+				float signedArea1 = Vector2::Cross(a, pointToSide);
+
+				pointToSide = p - triangleV2;
+				float signedArea2 = Vector2::Cross(b, pointToSide);
+
+				pointToSide = p - triangleV3;
+				float signedArea3 = Vector2::Cross(c, pointToSide);
+
+				float W1 = signedArea1 / totalArea;
+				float W2 = signedArea2 / totalArea;
+				float W3 = signedArea3 / totalArea;
+
+				ColorRGB finalColor{};
+				if (signedArea1 > 0 && signedArea2 > 0 && signedArea3 > 0)
+				{
+					//depthTest
+					float interpolatedDepth{ newTriangle[0].position.z * W1 + newTriangle[1].position.z * W2 + newTriangle[2].position.z * W3 };
+					int curPixel = px * py;
+					if(interpolatedDepth < depthBuffer[curPixel])
+					{
+						depthBuffer[curPixel] = interpolatedDepth;
+
+						ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
+
+						ColorBuffer[curPixel] = interpolated;
+						finalColor = interpolated;
+						//finalColor = ColorRGB{ 1,1,1 };
+					}else
+					{
+						finalColor = ColorBuffer[curPixel];
+					}
 				}
 				else
 				{
