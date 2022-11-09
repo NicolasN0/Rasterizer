@@ -53,5 +53,6 @@ namespace dae
 		//Render Functions
 		void Render_W1_Part1();
 		void Render_W1_Part2();
+		void Render_W1_Part3();
 	};
 }
