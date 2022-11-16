@@ -25,7 +25,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	m_pBackBuffer = SDL_CreateRGBSurface(0, m_Width, m_Height, 32, 0, 0, 0, 0);
 	m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
 
-	//m_pDepthBufferPixels = new float[m_Width * m_Height];
+	m_pDepthBufferPixels = new float[m_Width * m_Height];
 
 	//Initialize Camera
 	m_Camera.Initialize(60.f, { .0f,.0f,-10.f });
@@ -33,7 +33,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 
 Renderer::~Renderer()
 {
-	//delete[] m_pDepthBufferPixels;
+	delete[] m_pDepthBufferPixels;
 }
 
 void Renderer::Update(Timer* pTimer)
@@ -81,6 +81,10 @@ void Renderer::Render()
 void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_in, std::vector<Vertex>& vertices_out) const
 {
 	//Todo > W1 Projection Stage
+
+
+	//std::vector<Vertex> vertices_in;
+
 	//WorldSpace to vector of NDC Space (or directlcy to screen?)
 	vertices_out.clear();
 	float aspectRatio = { m_Width / static_cast<float>(m_Height) };
@@ -111,6 +115,20 @@ void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_
 		vertices_out.push_back(pScreen);
 	}
 
+}
+
+void dae::Renderer::VertexTransformationFunction(const std::vector<Mesh>& mesh, std::vector<Vertex>& vertices_out) const
+{
+	std::vector<Vertex> vertices;
+	for(int i{};  i < mesh.size();i++)
+	{
+		for(int j{}; j < mesh[i].vertices.size(); j++)
+		{
+			vertices.push_back(mesh[i].vertices[j]);
+		}
+	}
+	//vertices = mesh.vertices;
+	VertexTransformationFunction(vertices, vertices_out);
 }
 
 void dae::Renderer::Render_W1_Part1()
@@ -373,21 +391,22 @@ void dae::Renderer::Render_W1_Part3()
 
 				Vector2 p{ float(px),float(py) };
 
-				
 
-				Vector2 pointToSide = p - triangleV1;
 
-				float signedArea1 = Vector2::Cross(a, pointToSide);
-
-				pointToSide = p - triangleV2;
-				float signedArea2 = Vector2::Cross(b, pointToSide);
+				Vector2 pointToSide{ p - triangleV2 };
+				float signedArea1{ Vector2::Cross(b, pointToSide) };
 
 				pointToSide = p - triangleV3;
-				float signedArea3 = Vector2::Cross(c, pointToSide);
+				float signedArea2{ Vector2::Cross(c, pointToSide) };
+
+				pointToSide = p - triangleV1;
+				float signedArea3{ Vector2::Cross(a, pointToSide) };
+
 
 				float W1 = signedArea1 / totalArea;
 				float W2 = signedArea2 / totalArea;
 				float W3 = signedArea3 / totalArea;
+			
 
 				ColorRGB finalColor{};
 				if (signedArea1 > 0 && signedArea2 > 0 && signedArea3 > 0)
@@ -490,39 +509,184 @@ void dae::Renderer::Render_W1_Part4()
 
 
 
-				Vector2 pointToSide = p - triangleV1;
 
-				float signedArea1 = Vector2::Cross(a, pointToSide);
-
-				pointToSide = p - triangleV2;
-				float signedArea2 = Vector2::Cross(b, pointToSide);
+				Vector2 pointToSide{ p - triangleV2 };
+				float signedArea1{ Vector2::Cross(b, pointToSide) };
 
 				pointToSide = p - triangleV3;
-				float signedArea3 = Vector2::Cross(c, pointToSide);
+				float signedArea2{ Vector2::Cross(c, pointToSide) };
+
+				pointToSide = p - triangleV1;
+				float signedArea3{ Vector2::Cross(a, pointToSide) };
+
+				float W1 = signedArea1 / totalArea;
+				float W2 = signedArea2 / totalArea;
+				float W3 = signedArea3 / totalArea;
+				
+
+				int curPixel = px + (py*m_Width);
+				ColorRGB finalColor{};
+				if (signedArea1 > 0 && signedArea2 > 0 && signedArea3 > 0)
+				{
+					//depthTest
+					//float interpolatedDepth{ newTriangle[0].position.z * W1 + newTriangle[1].position.z * W2 + newTriangle[2].position.z * W3 };
+					float interpolatedDepth{ 1/newTriangle[0].position.z * W1 + 1/newTriangle[1].position.z * W2 + 1/newTriangle[2].position.z * W3 };
+					float depth = 1 / interpolatedDepth;
+
+					
+					if(depth < depthBuffer[curPixel])
+					{
+						depthBuffer[curPixel] = interpolatedDepth;
+
+						ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
+						ColorBuffer[curPixel] = interpolated;
+
+						
+						
+
+
+						
+					}
+					
+					
+				}
+			
+				finalColor = ColorBuffer[curPixel];
+
+				//Update Color in Buffer
+				finalColor.MaxToOne();
+
+				m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+					static_cast<uint8_t>(finalColor.r * 255),
+					static_cast<uint8_t>(finalColor.g * 255),
+					static_cast<uint8_t>(finalColor.b * 255));
+			}
+		}
+
+
+	}
+}
+
+void dae::Renderer::Render_W2_Part1()
+{
+
+//	DefineMesh Strip
+//	std::vector<Mesh> meshes_world
+//	{
+//		Mesh{
+//			{
+//					Vertex{{-3.f,3.f,-2.f}},
+//					Vertex{{0.f,3.f,-2.f}},
+//					Vertex{{3.f,3.f,-2.f}},
+//					Vertex{{-3.f,0.f,-2.f}},
+//					Vertex{{0.f,0.f,-2.f}},
+//					Vertex{{3.f,0.f,-2.f}},
+//					Vertex{{-3.f,-3.f,-2.f}},
+//					Vertex{{0.f,-3.f,-2.f}},
+//					Vertex{{3.f,-3.f,-2.f}},
+//						},
+//{
+//			3,0,4,1,5,2,
+//			2,6,
+//			6,3,7,4,8,5
+//			},
+//		PrimitiveTopology::TriangleStrip
+//			}
+//	};
+
+//	//DefineMesh List
+	std::vector<Mesh> meshes_world
+	{
+		Mesh{
+			{
+					Vertex{{-3.f,3.f,-2.f}},
+					Vertex{{0.f,3.f,-2.f}},
+					Vertex{{3.f,3.f,-2.f}},
+					Vertex{{-3.f,0.f,-2.f}},
+					Vertex{{0.f,0.f,-2.f}},
+					Vertex{{3.f,0.f,-2.f}},
+					Vertex{{-3.f,-3.f,-2.f}},
+					Vertex{{0.f,-3.f,-2.f}},
+					Vertex{{3.f,-3.f,-2.f}},
+						},
+{
+			3,0,1, 1,4,3, 4,1,2,
+			2,5,4, 6,3,4, 4,7,6,
+			7,4,5, 5,8,7
+			},
+		PrimitiveTopology::TriangeList
+			}
+	};
+
+		//Convert Poins To screenSpace (raster space)
+	std::vector<Vertex> totalVertices;
+	VertexTransformationFunction(meshes_world, totalVertices);
+	//int numberMeshes = meshes_world.size();
+
+	std::vector<std::vector<Vertex>> triangles;
+
+	for(int i{}; i < totalVertices.size() ; i++)
+	{
+		
+	}
+
+	for (int i{}; i < 1; i++)
+	{
+		//create the triangle side vectors
+
+
+		Vector2 a = Vector2{ totalVertices[1].position.x,totalVertices[1].position.y } - Vector2{ totalVertices[0].position.x,totalVertices[0].position.y };
+		Vector2 b = Vector2{ totalVertices[2].position.x,totalVertices[2].position.y } - Vector2{ totalVertices[1].position.x,totalVertices[1].position.y };
+		Vector2 c = Vector2{ totalVertices[0].position.x,totalVertices[0].position.y } - Vector2{ totalVertices[2].position.x,totalVertices[2].position.y };
+
+		Vector2 triangleV1 = { totalVertices[0].position.x,totalVertices[0].position.y };
+		Vector2 triangleV2 = { totalVertices[1].position.x,totalVertices[1].position.y };
+		Vector2 triangleV3 = { totalVertices[2].position.x,totalVertices[2].position.y };
+
+		float W0;
+		float W1;
+		float W2;
+
+		Vector2 edge = Vector2{ totalVertices[2].position.x,totalVertices[2].position.y } - Vector2{ totalVertices[0].position.x,totalVertices[0].position.y };
+		float totalArea = Vector2::Cross(a, edge);
+
+		for (int px{}; px < m_Width; ++px)
+		{
+			for (int py{}; py < m_Height; ++py)
+			{
+				float gradient = px / static_cast<float>(m_Width);
+				gradient += py / static_cast<float>(m_Width);
+				gradient /= 2.0f;
+
+
+				Vector2 p{ float(px),float(py) };
+
+
+
+				Vector2 pointToSide{ p - triangleV2 };
+				float signedArea1{ Vector2::Cross(b, pointToSide) };
+
+				pointToSide = p - triangleV3;
+				float signedArea2{ Vector2::Cross(c, pointToSide) };
+
+				pointToSide = p - triangleV1;
+				float signedArea3{ Vector2::Cross(a, pointToSide) };
+
 
 				float W1 = signedArea1 / totalArea;
 				float W2 = signedArea2 / totalArea;
 				float W3 = signedArea3 / totalArea;
 
+
 				ColorRGB finalColor{};
 				if (signedArea1 > 0 && signedArea2 > 0 && signedArea3 > 0)
 				{
-					//depthTest
-					float interpolatedDepth{ newTriangle[0].position.z * W1 + newTriangle[1].position.z * W2 + newTriangle[2].position.z * W3 };
-					int curPixel = px * py;
-					if(interpolatedDepth < depthBuffer[curPixel])
-					{
-						depthBuffer[curPixel] = interpolatedDepth;
+					//float total = signedArea1 + signedArea2 + signedArea3;
 
-						ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
-
-						ColorBuffer[curPixel] = interpolated;
-						finalColor = interpolated;
-						//finalColor = ColorRGB{ 1,1,1 };
-					}else
-					{
-						finalColor = ColorBuffer[curPixel];
-					}
+					//std::cout << total << std::endl;
+					ColorRGB interpolated{ totalVertices[0].color * W1 + totalVertices[1].color * W2 + totalVertices[2].color * W3 };
+					finalColor = interpolated;
+					//finalColor = ColorRGB{ 1,1,1 };
 				}
 				else
 				{
@@ -543,6 +707,14 @@ void dae::Renderer::Render_W1_Part4()
 
 
 	}
+	
+}
+
+float dae::Renderer::ComputeDepth(Vertex v0, Vertex v1,int curPixelX)
+{
+	float weight = (curPixelX - v0.position.x) / (v1.position.x - v0.position.x);
+	//float zInverse = 1/
+	return 0.0f;
 }
 
 bool Renderer::SaveBufferToImage() const

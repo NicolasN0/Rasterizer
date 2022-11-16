@@ -67,6 +67,9 @@ namespace dae
 			viewMatrix = invView;
 			//Matrix::CreateLookAtLH()
 			//ViewMatrix => Matrix::CreateLookAtLH(...) [not implemented yet]
+			viewMatrix = Matrix::CreateLookAtLH(origin, forward, up);
+			invViewMatrix = viewMatrix.Inverse();
+			
 			//DirectX Implementation => https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixlookatlh
 		}
 
