@@ -29,6 +29,18 @@ Renderer::Renderer(SDL_Window* pWindow) :
 
 	//Initialize Camera
 	m_Camera.Initialize(60.f, { .0f,.0f,-10.f });
+
+	int size{ m_Width * m_Height };
+	m_ColorBuffer = new ColorRGB[size];
+	for (int i{ 0 }; i < size; i++)
+	{
+		m_ColorBuffer[i] = colors::Gray;
+	}
+	m_pDepthBufferPixels = new float[size];
+	for (int i{ 0 }; i < size; i++)
+	{
+		m_pDepthBufferPixels[i] = FLT_MAX;
+	}
 }
 
 Renderer::~Renderer()
@@ -67,10 +79,23 @@ void Renderer::Render()
 	//			static_cast<uint8_t>(finalColor.b * 255));
 	//	}
 	//}
+	//ResetBuffers
+	int size{ m_Width * m_Height };
+	m_ColorBuffer = new ColorRGB[size];
+	for (int i{ 0 }; i < size; i++)
+	{
+		m_ColorBuffer[i] = colors::Gray;
+	}
+	m_pDepthBufferPixels = new float[size];
+	for (int i{ 0 }; i < size; i++)
+	{
+		m_pDepthBufferPixels[i] = FLT_MAX;
+	}
 	//Render_W1_Part1();
 	//Render_W1_Part2();
 	//Render_W1_Part3();
-	Render_W1_Part4();
+	//Render_W1_Part4();
+	Render_W2_Part1();
 	//@END
 	//Update SDL Surface
 	SDL_UnlockSurface(m_pBackBuffer);
@@ -541,11 +566,7 @@ void dae::Renderer::Render_W1_Part4()
 						ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
 						ColorBuffer[curPixel] = interpolated;
 
-						
-						
 
-
-						
 					}
 					
 					
@@ -571,31 +592,31 @@ void dae::Renderer::Render_W2_Part1()
 {
 
 //	DefineMesh Strip
-//	std::vector<Mesh> meshes_world
-//	{
-//		Mesh{
-//			{
-//					Vertex{{-3.f,3.f,-2.f}},
-//					Vertex{{0.f,3.f,-2.f}},
-//					Vertex{{3.f,3.f,-2.f}},
-//					Vertex{{-3.f,0.f,-2.f}},
-//					Vertex{{0.f,0.f,-2.f}},
-//					Vertex{{3.f,0.f,-2.f}},
-//					Vertex{{-3.f,-3.f,-2.f}},
-//					Vertex{{0.f,-3.f,-2.f}},
-//					Vertex{{3.f,-3.f,-2.f}},
-//						},
-//{
-//			3,0,4,1,5,2,
-//			2,6,
-//			6,3,7,4,8,5
-//			},
-//		PrimitiveTopology::TriangleStrip
-//			}
-//	};
+	std::vector<Mesh> meshes_world
+	{
+		Mesh{
+			{
+					Vertex{{-3.f,3.f,-2.f}},
+					Vertex{{0.f,3.f,-2.f}},
+					Vertex{{3.f,3.f,-2.f}},
+					Vertex{{-3.f,0.f,-2.f}},
+					Vertex{{0.f,0.f,-2.f}},
+					Vertex{{3.f,0.f,-2.f}},
+					Vertex{{-3.f,-3.f,-2.f}},
+					Vertex{{0.f,-3.f,-2.f}},
+					Vertex{{3.f,-3.f,-2.f}},
+						},
+{
+			3,0,4,1,5,2,
+			2,6,
+			6,3,7,4,8,5
+			},
+		PrimitiveTopology::TriangleStrip
+			}
+	};
 
 //	//DefineMesh List
-	std::vector<Mesh> meshes_world
+	/*std::vector<Mesh> meshes_world
 	{
 		Mesh{
 			{
@@ -616,38 +637,111 @@ void dae::Renderer::Render_W2_Part1()
 			},
 		PrimitiveTopology::TriangeList
 			}
-	};
+	};*/
 
-		//Convert Poins To screenSpace (raster space)
-	std::vector<Vertex> totalVertices;
-	VertexTransformationFunction(meshes_world, totalVertices);
-	//int numberMeshes = meshes_world.size();
 
-	std::vector<std::vector<Vertex>> triangles;
-
-	for(int i{}; i < totalVertices.size() ; i++)
+	for(int meshIter{}; meshIter < meshes_world.size();meshIter++)
 	{
-		
+		Mesh& mesh{ meshes_world[meshIter] };
+		switch(mesh.primitiveTopology)
+		{
+		case PrimitiveTopology::TriangeList:
+			for(int indiceI{}; indiceI < mesh.indices.size(); indiceI+=3)
+			{
+				int ind1{ int(mesh.indices[indiceI]) };
+				int ind2{ int(mesh.indices[indiceI+1]) };
+				int ind3{ int(mesh.indices[indiceI+2]) };
+				std::vector<Vertex> triangle{ mesh.vertices[ind1],mesh.vertices[ind2],mesh.vertices[ind3] };
+
+				std::vector<Vertex> totalVertices;
+				VertexTransformationFunction(triangle, totalVertices);
+				
+				RenderTriangle(totalVertices);
+				
+			}
+			break;
+		case PrimitiveTopology::TriangleStrip:
+			for(int indiceI{}; indiceI < mesh.indices.size();indiceI++)
+			{
+				int ind1{};
+				int ind2{};
+				int ind3{};
+				if(indiceI == mesh.indices.size()/2)
+				{
+					ind1 = int(mesh.indices[indiceI + 1]) ;
+					ind2 = int(mesh.indices[indiceI + 2]) ;
+					ind3 = int(mesh.indices[indiceI + 3]) ;
+				} else if(indiceI < mesh.indices.size() -2)
+				{
+					ind1 = int(mesh.indices[indiceI ]);
+					ind2 = int(mesh.indices[indiceI + 1]);
+					ind3 = int(mesh.indices[indiceI + 2]);
+				}
+				std::vector<Vertex> triangle{};
+				if(indiceI % 2 == 0)
+				{
+					triangle = std::vector<Vertex>{ mesh.vertices[ind1],mesh.vertices[ind2],mesh.vertices[ind3] };
+				} else
+				{
+					triangle = std::vector<Vertex>{ mesh.vertices[ind1],mesh.vertices[ind3],mesh.vertices[ind2] };
+
+				}
+
+				//std::vector<Vertex> triangle{ mesh.vertices[ind1],mesh.vertices[ind2],mesh.vertices[ind3] };
+
+				std::vector<Vertex> totalVertices;
+				VertexTransformationFunction(triangle, totalVertices);
+
+				RenderTriangle(totalVertices);
+			}
+			break;
+		}
 	}
+	//Convert Poins To screenSpace (raster space)
+	
 
-	for (int i{}; i < 1; i++)
+
+	
+	
+}
+
+float dae::Renderer::ComputeDepth(Vertex v0, Vertex v1,int curPixelX)
+{
+	float weight = (curPixelX - v0.position.x) / (v1.position.x - v0.position.x);
+	//float zInverse = 1/
+	return 0.0f;
+}
+
+void dae::Renderer::RenderTriangle(std::vector<Vertex> newTriangle)
+{
+	/*std::vector<float> depthBuffer;
+	for (int i{}; i < m_Width * m_Height; i++)
 	{
+		depthBuffer.push_back(FLT_MAX);
+	}*/
+	//ColorBuffer? No idea how else;
+	/*std::vector<ColorRGB> ColorBuffer;
+	for (int i{}; i < m_Width * m_Height; i++)
+	{
+		ColorBuffer.push_back(colors::Black);
+	}*/
+
 		//create the triangle side vectors
 
 
-		Vector2 a = Vector2{ totalVertices[1].position.x,totalVertices[1].position.y } - Vector2{ totalVertices[0].position.x,totalVertices[0].position.y };
-		Vector2 b = Vector2{ totalVertices[2].position.x,totalVertices[2].position.y } - Vector2{ totalVertices[1].position.x,totalVertices[1].position.y };
-		Vector2 c = Vector2{ totalVertices[0].position.x,totalVertices[0].position.y } - Vector2{ totalVertices[2].position.x,totalVertices[2].position.y };
+		Vector2 a = Vector2{ newTriangle[1].position.x,newTriangle[1].position.y } - Vector2{ newTriangle[0].position.x,newTriangle[0].position.y };
+		Vector2 b = Vector2{ newTriangle[2].position.x,newTriangle[2].position.y } - Vector2{ newTriangle[1].position.x,newTriangle[1].position.y };
+		Vector2 c = Vector2{ newTriangle[0].position.x,newTriangle[0].position.y } - Vector2{ newTriangle[2].position.x,newTriangle[2].position.y };
 
-		Vector2 triangleV1 = { totalVertices[0].position.x,totalVertices[0].position.y };
-		Vector2 triangleV2 = { totalVertices[1].position.x,totalVertices[1].position.y };
-		Vector2 triangleV3 = { totalVertices[2].position.x,totalVertices[2].position.y };
+		Vector2 triangleV1 = { newTriangle[0].position.x,newTriangle[0].position.y };
+		Vector2 triangleV2 = { newTriangle[1].position.x,newTriangle[1].position.y };
+		Vector2 triangleV3 = { newTriangle[2].position.x,newTriangle[2].position.y };
 
 		float W0;
 		float W1;
 		float W2;
 
-		Vector2 edge = Vector2{ totalVertices[2].position.x,totalVertices[2].position.y } - Vector2{ totalVertices[0].position.x,totalVertices[0].position.y };
+		Vector2 edge = Vector2{ newTriangle[2].position.x,newTriangle[2].position.y } - Vector2{ newTriangle[0].position.x,newTriangle[0].position.y };
 		float totalArea = Vector2::Cross(a, edge);
 
 		for (int px{}; px < m_Width; ++px)
@@ -663,6 +757,7 @@ void dae::Renderer::Render_W2_Part1()
 
 
 
+
 				Vector2 pointToSide{ p - triangleV2 };
 				float signedArea1{ Vector2::Cross(b, pointToSide) };
 
@@ -672,28 +767,35 @@ void dae::Renderer::Render_W2_Part1()
 				pointToSide = p - triangleV1;
 				float signedArea3{ Vector2::Cross(a, pointToSide) };
 
-
 				float W1 = signedArea1 / totalArea;
 				float W2 = signedArea2 / totalArea;
 				float W3 = signedArea3 / totalArea;
 
 
+				int curPixel = px + (py * m_Width);
 				ColorRGB finalColor{};
 				if (signedArea1 > 0 && signedArea2 > 0 && signedArea3 > 0)
 				{
-					//float total = signedArea1 + signedArea2 + signedArea3;
+					//depthTest
+					//float interpolatedDepth{ newTriangle[0].position.z * W1 + newTriangle[1].position.z * W2 + newTriangle[2].position.z * W3 };
+					float interpolatedDepth{ 1 / newTriangle[0].position.z * W1 + 1 / newTriangle[1].position.z * W2 + 1 / newTriangle[2].position.z * W3 };
+					float depth = 1 / interpolatedDepth;
 
-					//std::cout << total << std::endl;
-					ColorRGB interpolated{ totalVertices[0].color * W1 + totalVertices[1].color * W2 + totalVertices[2].color * W3 };
-					finalColor = interpolated;
-					//finalColor = ColorRGB{ 1,1,1 };
+
+					ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
+					if (depth < m_pDepthBufferPixels[curPixel])
+					{
+						m_pDepthBufferPixels[curPixel] = interpolatedDepth;
+						m_ColorBuffer[curPixel] = interpolated;
+
+
+
+					}
+
+
 				}
-				else
-				{
-					finalColor = ColorRGB{ 0,0,0 };
 
-				}
-
+				finalColor = m_ColorBuffer[curPixel];
 
 				//Update Color in Buffer
 				finalColor.MaxToOne();
@@ -706,15 +808,7 @@ void dae::Renderer::Render_W2_Part1()
 		}
 
 
-	}
 	
-}
-
-float dae::Renderer::ComputeDepth(Vertex v0, Vertex v1,int curPixelX)
-{
-	float weight = (curPixelX - v0.position.x) / (v1.position.x - v0.position.x);
-	//float zInverse = 1/
-	return 0.0f;
 }
 
 bool Renderer::SaveBufferToImage() const

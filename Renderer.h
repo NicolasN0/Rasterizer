@@ -41,7 +41,7 @@ namespace dae
 		uint32_t* m_pBackBufferPixels{};
 
 		float* m_pDepthBufferPixels{};
-
+		ColorRGB* m_ColorBuffer;
 		Camera m_Camera{};
 
 		int m_Width{};
@@ -59,5 +59,6 @@ namespace dae
 		void Render_W2_Part1();
 
 		float ComputeDepth(Vertex v0, Vertex v1,int curPixel);
+		void RenderTriangle(std::vector<Vertex> newTriangle);
 	};
 }
