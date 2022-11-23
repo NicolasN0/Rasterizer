@@ -26,7 +26,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
 
 	m_pDepthBufferPixels = new float[m_Width * m_Height];
-
+	m_pTexture = Texture::LoadFromFile("Resources/uv_grid_2.png");
 	//Initialize Camera
 	m_Camera.Initialize(60.f, { .0f,.0f,-10.f });
 
@@ -46,6 +46,7 @@ Renderer::Renderer(SDL_Window* pWindow) :
 Renderer::~Renderer()
 {
 	delete[] m_pDepthBufferPixels;
+	delete m_pTexture;
 }
 
 void Renderer::Update(Timer* pTimer)
@@ -95,7 +96,8 @@ void Renderer::Render()
 	//Render_W1_Part2();
 	//Render_W1_Part3();
 	//Render_W1_Part4();
-	Render_W2_Part1();
+	//Render_W2_Part1();
+	Render_W2_Part2();
 	//@END
 	//Update SDL Surface
 	SDL_UnlockSurface(m_pBackBuffer);
@@ -137,6 +139,7 @@ void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_
 		pScreen.position.y = ((1 - p.position.y) / 2) * m_Height;
 		pScreen.position.z = p.position.z;
 		pScreen.color = vertices_in[i].color;
+		pScreen.uv = vertices_in[i].uv;
 		vertices_out.push_back(pScreen);
 	}
 
@@ -596,15 +599,15 @@ void dae::Renderer::Render_W2_Part1()
 	{
 		Mesh{
 			{
-					Vertex{{-3.f,3.f,-2.f}},
-					Vertex{{0.f,3.f,-2.f}},
-					Vertex{{3.f,3.f,-2.f}},
-					Vertex{{-3.f,0.f,-2.f}},
-					Vertex{{0.f,0.f,-2.f}},
-					Vertex{{3.f,0.f,-2.f}},
-					Vertex{{-3.f,-3.f,-2.f}},
-					Vertex{{0.f,-3.f,-2.f}},
-					Vertex{{3.f,-3.f,-2.f}},
+					Vertex{{-3.f,3.f,-2.f},{1,1,1},{0,0}},
+					Vertex{{0.f,3.f,-2.f},{1,1,1},{0.5f,0}},
+					Vertex{{3.f,3.f,-2.f},{1,1,1},{1,0}},
+					Vertex{{-3.f,0.f,-2.f},{1,1,1},{0,0.5f}},
+					Vertex{{0.f,0.f,-2.f},{1,1,1},{0.5f,0.5f}},
+					Vertex{{3.f,0.f,-2.f},{1,1,1},{1,0.5f}},
+					Vertex{{-3.f,-3.f,-2.f},{1,1,1},{0,1}},
+					Vertex{{0.f,-3.f,-2.f},{1,1,1},{0.5f,1}},
+					Vertex{{3.f,-3.f,-2.f},{1,1,1},{1,1}},
 						},
 {
 			3,0,4,1,5,2,
@@ -705,6 +708,123 @@ void dae::Renderer::Render_W2_Part1()
 	
 }
 
+void dae::Renderer::Render_W2_Part2()
+{
+	//DefineMesh Strip
+		std::vector<Mesh> meshes_world
+	{
+		Mesh{
+			{
+					Vertex{{-3.f,3.f,-2.f},{1,1,1},{0,0}},
+					Vertex{{0.f,3.f,-2.f},{1,1,1},{0.5f,0}},
+					Vertex{{3.f,3.f,-2.f},{1,1,1},{1,0}},
+					Vertex{{-3.f,0.f,-2.f},{1,1,1},{0,0.5f}},
+					Vertex{{0.f,0.f,-2.f},{1,1,1},{0.5f,0.5f}},
+					Vertex{{3.f,0.f,-2.f},{1,1,1},{1,0.5f}},
+					Vertex{{-3.f,-3.f,-2.f},{1,1,1},{0,1}},
+					Vertex{{0.f,-3.f,-2.f},{1,1,1},{0.5f,1}},
+					Vertex{{3.f,-3.f,-2.f},{1,1,1},{1,1}},
+						},
+{
+			3,0,4,1,5,2,
+			2,6,
+			6,3,7,4,8,5
+			},
+		PrimitiveTopology::TriangleStrip
+			}
+	};
+
+	//	//DefineMesh List
+		/*std::vector<Mesh> meshes_world
+		{
+			Mesh{
+				{
+						Vertex{{-3.f,3.f,-2.f}},
+						Vertex{{0.f,3.f,-2.f}},
+						Vertex{{3.f,3.f,-2.f}},
+						Vertex{{-3.f,0.f,-2.f}},
+						Vertex{{0.f,0.f,-2.f}},
+						Vertex{{3.f,0.f,-2.f}},
+						Vertex{{-3.f,-3.f,-2.f}},
+						Vertex{{0.f,-3.f,-2.f}},
+						Vertex{{3.f,-3.f,-2.f}},
+							},
+	{
+				3,0,1, 1,4,3, 4,1,2,
+				2,5,4, 6,3,4, 4,7,6,
+				7,4,5, 5,8,7
+				},
+			PrimitiveTopology::TriangeList
+				}
+		};*/
+
+
+	for (int meshIter{}; meshIter < meshes_world.size(); meshIter++)
+	{
+		Mesh& mesh{ meshes_world[meshIter] };
+		switch (mesh.primitiveTopology)
+		{
+		case PrimitiveTopology::TriangeList:
+			for (int indiceI{}; indiceI < mesh.indices.size(); indiceI += 3)
+			{
+				int ind1{ int(mesh.indices[indiceI]) };
+				int ind2{ int(mesh.indices[indiceI + 1]) };
+				int ind3{ int(mesh.indices[indiceI + 2]) };
+				std::vector<Vertex> triangle{ mesh.vertices[ind1],mesh.vertices[ind2],mesh.vertices[ind3] };
+
+				std::vector<Vertex> totalVertices;
+				VertexTransformationFunction(triangle, totalVertices);
+
+				RenderTriangle(totalVertices);
+
+			}
+			break;
+		case PrimitiveTopology::TriangleStrip:
+			for (int indiceI{}; indiceI < mesh.indices.size(); indiceI++)
+			{
+				int ind1{};
+				int ind2{};
+				int ind3{};
+				if (indiceI == mesh.indices.size() / 2)
+				{
+					ind1 = int(mesh.indices[indiceI + 1]);
+					ind2 = int(mesh.indices[indiceI + 2]);
+					ind3 = int(mesh.indices[indiceI + 3]);
+				}
+				else if (indiceI < mesh.indices.size() - 2)
+				{
+					ind1 = int(mesh.indices[indiceI]);
+					ind2 = int(mesh.indices[indiceI + 1]);
+					ind3 = int(mesh.indices[indiceI + 2]);
+				}
+				std::vector<Vertex> triangle{};
+				if (indiceI % 2 == 0)
+				{
+					triangle = std::vector<Vertex>{ mesh.vertices[ind1],mesh.vertices[ind2],mesh.vertices[ind3] };
+				}
+				else
+				{
+					triangle = std::vector<Vertex>{ mesh.vertices[ind1],mesh.vertices[ind3],mesh.vertices[ind2] };
+
+				}
+
+				//std::vector<Vertex> triangle{ mesh.vertices[ind1],mesh.vertices[ind2],mesh.vertices[ind3] };
+
+				std::vector<Vertex> totalVertices;
+				VertexTransformationFunction(triangle, totalVertices);
+
+				RenderTriangle(totalVertices);
+			}
+			break;
+		}
+	}
+	//Convert Poins To screenSpace (raster space)
+
+
+
+
+}
+
 float dae::Renderer::ComputeDepth(Vertex v0, Vertex v1,int curPixelX)
 {
 	float weight = (curPixelX - v0.position.x) / (v1.position.x - v0.position.x);
@@ -714,19 +834,6 @@ float dae::Renderer::ComputeDepth(Vertex v0, Vertex v1,int curPixelX)
 
 void dae::Renderer::RenderTriangle(std::vector<Vertex> newTriangle)
 {
-	/*std::vector<float> depthBuffer;
-	for (int i{}; i < m_Width * m_Height; i++)
-	{
-		depthBuffer.push_back(FLT_MAX);
-	}*/
-	//ColorBuffer? No idea how else;
-	/*std::vector<ColorRGB> ColorBuffer;
-	for (int i{}; i < m_Width * m_Height; i++)
-	{
-		ColorBuffer.push_back(colors::Black);
-	}*/
-
-		//create the triangle side vectors
 
 
 		Vector2 a = Vector2{ newTriangle[1].position.x,newTriangle[1].position.y } - Vector2{ newTriangle[0].position.x,newTriangle[0].position.y };
@@ -778,25 +885,41 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex> newTriangle)
 				{
 					//depthTest
 					//float interpolatedDepth{ newTriangle[0].position.z * W1 + newTriangle[1].position.z * W2 + newTriangle[2].position.z * W3 };
-					float interpolatedDepth{ 1 / newTriangle[0].position.z * W1 + 1 / newTriangle[1].position.z * W2 + 1 / newTriangle[2].position.z * W3 };
+					float interpolatedDepth{ 1 / ((1 / newTriangle[0].position.z) * W1 + (1 / newTriangle[1].position.z) * W2 + (1 / newTriangle[2].position.z) * W3) };
 					float depth = 1 / interpolatedDepth;
 
 
-					ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
+					//ColorRGB interpolated{ newTriangle[0].color * W1 + newTriangle[1].color * W2 + newTriangle[2].color * W3 };
+
+					/*Vector2 interpolatedUV{
+						(((newTriangle[0].uv/newTriangle[0].position.z) * W1) 
+						+ ((newTriangle[1].uv / newTriangle[1].position.z) * W2)
+							+ ((newTriangle[2].uv / newTriangle[2].position.z) * W3))* interpolatedDepth};
+		
+					ColorRGB textureColor = m_pTexture->Sample(interpolatedUV);*/
+
+					Vector2 interpolatedUV{
+					(((newTriangle[0].uv / newTriangle[0].position.z) * W1) +
+					((newTriangle[1].uv / newTriangle[1].position.z) * W2) +
+					((newTriangle[2].uv / newTriangle[2].position.z) * W3)) * interpolatedDepth };
+
+					ColorRGB textureColor{ m_pTexture->Sample(interpolatedUV) };
+					ColorRGB interpolatedColor{ (textureColor * W1) + (textureColor * W2) + (textureColor * W3) };
+					//ColorRGB interpolatedColor = textureColor * W1 + textureColor * W2 + textureColor * W3;
+
 					if (depth < m_pDepthBufferPixels[curPixel])
 					{
 						m_pDepthBufferPixels[curPixel] = interpolatedDepth;
-						m_ColorBuffer[curPixel] = interpolated;
-
-
-
+						//m_ColorBuffer[curPixel] = interpolated;
+						m_ColorBuffer[curPixel] = interpolatedColor;
+						//m_ColorBuffer[curPixel] = interpolatedColor;
 					}
+
 
 
 				}
 
 				finalColor = m_ColorBuffer[curPixel];
-
 				//Update Color in Buffer
 				finalColor.MaxToOne();
 
@@ -809,6 +932,33 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex> newTriangle)
 
 
 	
+}
+
+void dae::Renderer::MakeWorldViewProjectionMatrix(std::vector<Vertex> verts)
+{
+	//WORLD
+
+	totalTranslationTest += translationTransform.GetTranslation();
+	Matrix totalTransMatrix = Matrix::CreateTranslation(totalTranslationTest);
+	Matrix totalTransMatrixNeg = Matrix::CreateTranslation(-totalTranslationTest);
+
+	const Matrix finalTransform{ totalTransMatrixNeg * scaleTransform * rotationTransform * translationTransform * totalTransMatrix };
+
+	for (int i{}; i < verts.size(); i++)
+	{
+		verts[i].position = finalTransform.TransformPoint(verts[i].position);
+	}
+
+
+	for (int i{}; i < verts.size(); i++)
+	{
+		verts[i].normal = finalTransform.TransformVector(verts[i].normal);
+	}
+
+
+	translationTransform = Matrix{};
+	scaleTransform = Matrix{};
+	rotationTransform = Matrix{};
 }
 
 bool Renderer::SaveBufferToImage() const

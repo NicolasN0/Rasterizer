@@ -38,6 +38,9 @@ namespace dae
 
 		float rotspeed{ 0.005f };
 
+		const float m_NearPlane = 0.1f;
+		const float m_FarPlane = 100.f;
+
 		void Initialize(float _fovAngle = 90.f, Vector3 _origin = {0.f,0.f,0.f})
 		{
 			fovAngle = _fovAngle;

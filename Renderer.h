@@ -46,7 +46,13 @@ namespace dae
 
 		int m_Width{};
 		int m_Height{};
-		
+		Texture* m_pTexture;
+
+	
+
+		Matrix m_TransMatrix;
+		Matrix m_ScaleMatrix;
+		Matrix m_RotMatrix;
 		//Function that transforms the vertices from the mesh from World space to Screen space
 		void VertexTransformationFunction(const std::vector<Vertex>& vertices_in, std::vector<Vertex>& vertices_out) const; //W1 Version
 		void VertexTransformationFunction(const std::vector<Mesh>& mesh, std::vector<Vertex>& vertices_out) const; //W1 Version
@@ -57,8 +63,12 @@ namespace dae
 		void Render_W1_Part3();
 		void Render_W1_Part4();
 		void Render_W2_Part1();
+		void Render_W2_Part2();
 
 		float ComputeDepth(Vertex v0, Vertex v1,int curPixel);
 		void RenderTriangle(std::vector<Vertex> newTriangle);
+
+		void MakeWorldViewProjectionMatrix(std::vector<Vertex> verts);
+
 	};
 }
