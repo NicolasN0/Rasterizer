@@ -35,8 +35,11 @@ namespace dae
 
 		Matrix invViewMatrix{};
 		Matrix viewMatrix{};
+		Matrix projectionMatrix{};
 
 		float rotspeed{ 0.005f };
+
+		float aspectRatio{};
 
 		const float m_NearPlane = 0.1f;
 		const float m_FarPlane = 100.f;
@@ -81,7 +84,15 @@ namespace dae
 			//TODO W2
 
 			//ProjectionMatrix => Matrix::CreatePerspectiveFovLH(...) [not implemented yet]
+			projectionMatrix = Matrix::CreatePerspectiveFovLH(fov,aspectRatio,m_NearPlane,m_FarPlane);
 			//DirectX Implementation => https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixperspectivefovlh
+			/*float A{ m_FarPlane / (m_FarPlane - m_NearPlane) };
+			float B{ -(m_FarPlane * m_NearPlane) / (m_FarPlane - m_NearPlane) };
+			Matrix projectionMatrix{ Vector4{1 / (aspectRatio * fov),0,0,0}
+				,Vector4{0,1/fov,0,0}
+				,Vector4{0,0,A,1}
+			,Vector4{0,0,B,0}
+			};*/
 		}
 
 		void Update(Timer* pTimer)
