@@ -72,5 +72,6 @@ namespace dae
 
 		Matrix MakeWorldViewProjectionMatrix() const;
 
+		ColorRGB PixelShading(const Vertex_Out& v);
 	};
 }

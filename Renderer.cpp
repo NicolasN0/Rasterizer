@@ -179,38 +179,15 @@ void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_
 		p.position.y = ((1 - p.position.y) / 2) * m_Height;
 		p.color = vertices_in[i].color;
 		p.uv = vertices_in[i].uv;
+		//later when worldmatrix is added multiply the bottom two with only the world
+		p.normal = vertices_in[i].normal;
+		p.tangent = vertices_in[i].tangent;
+
+		//calculateViewDirectionToo
+		p.viewDirection = Vector3{  m_Camera.origin - p.position.GetXYZ() } ;
 		vertices_out.push_back(p);
 	}
 
-
-	//const Matrix worldViewProjectionMatrix{ m_Camera.viewMatrix * m_Camera.projectionMatrix };
-
-	//for (int i{}; i < vertices_in.size(); i++)
-	//{
-	//	Vector4 point{ vertices_in[i].position, 1 };
-
-	//	//Transform points to correct space
-	//	Vector4 transformedVert{ worldViewProjectionMatrix.TransformPoint(point) };
-
-	//	//Project point to 2d view plane (perspective divide)
-	//	float projectedVertexX{ transformedVert.x / transformedVert.w };
-	//	float projectedVertexY{ transformedVert.y / transformedVert.w };
-	//	float projectedVertexZ{ transformedVert.z / transformedVert.w };
-	//	const float projectedVertexW{ transformedVert.w };
-	//	projectedVertexX = ((projectedVertexX + 1) / 2) * m_Width;
-	//	projectedVertexY = ((1 - projectedVertexY) / 2) * m_Height;
-
-	//	//transform normals to correct space and solve visibility problem
-	//	Vector3 normal{ worldMatrix.TransformPoint(vertices_in[i].normal) };
-
-	//	if (!(projectedVertexX < -1 && projectedVertexX > 1) && !(projectedVertexY < -1 && projectedVertexY > 1)) {
-	//		//if (projectedVertexZ > 0 && projectedVertexZ < 1) {
-	//		Vertex_Out vert{ Vector4{projectedVertexX, projectedVertexY , projectedVertexZ, projectedVertexW}, vertices_in[i].color,  vertices_in[i].uv, normal.Normalized(), vertices_in[i].tangent };
-	//		//vertices_out[i] = vert;
-	//		vertices_out.push_back(vert);
-	//		//}
-	//	}
-	//}
 }
 
 void dae::Renderer::VertexTransformationFunction(const std::vector<Mesh>&mesh, std::vector<Vertex_Out>&vertices_out) const
@@ -1052,11 +1029,6 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 	int maxX = std::max(std::max(triangleV1.x, triangleV2.x), triangleV3.x);
 	int maxY = std::max(std::max(triangleV1.y, triangleV2.y), triangleV3.y);
 
-	/*float maxX = std::max(std::max(triangleV3.x, triangleV1.x), std::max(triangleV1.x, triangleV2.x));
-	float minX = std::min(std::min(triangleV1.x, triangleV2.x), std::min(triangleV3.x, triangleV1.x));
-	float maxY = std::max(std::max(triangleV1.y, triangleV2.y), std::max(triangleV3.y, triangleV1.y));
-	float minY = std::min(std::min(triangleV1.y, triangleV2.y), std::min(triangleV3.y, triangleV1.y));*/
-
 	if (
 		((minX >= 0) && (maxX <= (m_Width - 1))) &&
 		((minY >= 0) && (maxY <= (m_Width - 1)))) {
@@ -1122,8 +1094,6 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 
 				//}
 
-
-
 				if (W1 > 0.f && W2 > 0.f && W3 > 0.f) {
 
 					//depth test
@@ -1140,8 +1110,39 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 						((newTriangle[1].uv / newTriangle[1].position.w) * W2) +
 						((newTriangle[2].uv / newTriangle[2].position.w) * W3)) * interpolatedDepthW };
 
+					//normal interpolating
+					Vector3 interpolatedNormal{
+						(((newTriangle[0].normal / newTriangle[0].position.w) * W1) +
+						((newTriangle[1].normal / newTriangle[1].position.w) * W2) +
+						((newTriangle[2].normal / newTriangle[2].position.w) * W3)) * interpolatedDepthW };
+
+					//tangent interpolating
+					Vector3 interpolatedTangent{
+						(((newTriangle[0].tangent / newTriangle[0].position.w) * W1) +
+						((newTriangle[1].tangent / newTriangle[1].position.w) * W2) +
+						((newTriangle[2].tangent / newTriangle[2].position.w) * W3)) * interpolatedDepthW };
+
+
 					//ColorRGB interpolatedColor{ m_pTexture->Sample(interpolatedUV) };
 					ColorRGB interpolatedColor{ m_TukTukTexture->Sample(interpolatedUV) };
+
+					//pos interpolated
+					Vector4 interpolatedPos{
+						((newTriangle[0].position * W1) +
+						(newTriangle[1].position * W2) +
+						(newTriangle[2].position * W3)) * interpolatedDepthW
+					};
+
+					//interpolatedViewDirection;
+					Vector3 interpolatedViewDir
+					{
+						(((newTriangle[0].viewDirection / newTriangle[0].position.w) * W1) +
+						((newTriangle[1].viewDirection / newTriangle[1].position.w) * W2) +
+						((newTriangle[2].viewDirection / newTriangle[2].position.w) * W3)) * interpolatedDepthW
+					};
+					//Make new vertexOut with all interpolatedValues for shading
+
+					Vertex_Out interpolatedV = { interpolatedPos,finalColor,interpolatedUV,interpolatedNormal,interpolatedTangent,interpolatedViewDir };
 					m_ColorBuffer[curPixel] = interpolatedColor;
 				}
 
@@ -1193,4 +1194,22 @@ Matrix dae::Renderer::MakeWorldViewProjectionMatrix() const
 bool Renderer::SaveBufferToImage() const
 {
 	return SDL_SaveBMP(m_pBackBuffer, "Rasterizer_ColorBuffer.bmp");
+}
+
+ColorRGB Renderer::PixelShading(const Vertex_Out& v)
+{
+	Vector3 lightDirection = { .577f, -.577f, .577f };
+
+
+	//normal should change to interpolated normal?
+	
+	float ObservedArea{ Vector3::Dot(v.normal.Normalized(), lightDirection.Normalized() )};
+	/*if (ObservedArea < 0) {
+
+		return ;
+	}*/
+
+	//later switch for obvserved only for example
+
+	return ColorRGB{ ObservedArea,ObservedArea,ObservedArea };
 }
