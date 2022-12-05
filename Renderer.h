@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "DataTypes.h"
 
+
 struct SDL_Window;
 struct SDL_Surface;
 
@@ -16,6 +17,7 @@ namespace dae
 	struct Vertex;
 	class Timer;
 	class Scene;
+	class Material;
 
 	class Renderer final
 	{
@@ -48,7 +50,8 @@ namespace dae
 		int m_Height{};
 		Texture* m_pTexture;
 		Texture* m_TukTukTexture;
-	
+		Texture* m_pVehicleTexture;
+		Texture* m_pVehicleNormals;
 
 		Matrix m_TransMatrix;
 		Matrix m_ScaleMatrix;
@@ -65,12 +68,13 @@ namespace dae
 		void Render_W2_Part1();
 		void Render_W2_Part2();
 		void Render_w2_Part3();
+		void Render_W3_Part1();
 
 		//void RenderTriangle(std::vector<Vertex_Out> newTriangle);
 
 		void RenderTriangle(std::vector<Vertex_Out> newTriangle);
 
-		Matrix MakeWorldViewProjectionMatrix() const;
+		Matrix MakeWorldViewProjectionMatrix(Matrix world) const;
 
 		ColorRGB PixelShading(const Vertex_Out& v);
 	};

@@ -7,6 +7,7 @@
 
 #include <iostream>
 
+#include "Material.h"
 #include "Math.h"
 #include "Matrix.h"
 #include "Texture.h"
@@ -26,10 +27,14 @@ Renderer::Renderer(SDL_Window* pWindow) :
 	m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
 
 	m_pDepthBufferPixels = new float[m_Width * m_Height];
-	m_pTexture = Texture::LoadFromFile("Resources/uv_grid_2.png");
+	//m_pTexture = Texture::LoadFromFile("Resources/uv_grid_2.png");
 	m_TukTukTexture = Texture::LoadFromFile("Resources/tuktuk.png");
+	m_pVehicleTexture = Texture::LoadFromFile("Resources/vehicle_diffuse.png");
+	m_pVehicleNormals = Texture::LoadFromFile("Resources/vehicle_normal.png");
 	//Initialize Camera
-	m_Camera.Initialize(60.f, { .0f,5.0f,-30.f });
+	//m_Camera.Initialize(60.f, { .0f,5.0f,-30.f });
+	m_Camera.Initialize(45.f, { .0f,.0f,.0f });
+
 	m_Camera.aspectRatio = m_Width / static_cast<float>(m_Height);
 	int size{ m_Width * m_Height };
 	m_ColorBuffer = new ColorRGB[size];
@@ -43,18 +48,25 @@ Renderer::Renderer(SDL_Window* pWindow) :
 		m_pDepthBufferPixels[i] = FLT_MAX;
 	}
 
-	
+
 }
 
 Renderer::~Renderer()
 {
 	delete[] m_pDepthBufferPixels;
 	delete m_pTexture;
+	delete m_TukTukTexture;
+	delete m_pVehicleTexture;
+	delete m_pVehicleNormals;
+	//test
+	//delete[] m_pBackBufferPixels;
 }
 
 void Renderer::Update(Timer* pTimer)
 {
 	m_Camera.Update(pTimer);
+	
+
 }
 
 void Renderer::Render()
@@ -85,7 +97,8 @@ void Renderer::Render()
 	//Render_W1_Part4();
 	//Render_W2_Part1();
 	//Render_W2_Part2();
-	Render_w2_Part3();
+	//Render_w2_Part3();
+	Render_W3_Part1();
 	//@END
 	//Update SDL Surface
 	SDL_UnlockSurface(m_pBackBuffer);
@@ -143,7 +156,7 @@ void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_
 	vertices_out.clear();
 	float aspectRatio = { m_Width / static_cast<float>(m_Height) };
 	//m_Camera.viewMatrix;
-	Matrix end = MakeWorldViewProjectionMatrix();
+	Matrix end = MakeWorldViewProjectionMatrix(worldMatrix);
 	for (int i{}; i < vertices_in.size(); i++)
 	{
 		Vertex pWorld{};
@@ -180,8 +193,12 @@ void Renderer::VertexTransformationFunction(const std::vector<Vertex>& vertices_
 		p.color = vertices_in[i].color;
 		p.uv = vertices_in[i].uv;
 		//later when worldmatrix is added multiply the bottom two with only the world
-		p.normal = vertices_in[i].normal;
-		p.tangent = vertices_in[i].tangent;
+
+		/*p.normal = vertices_in[i].normal;
+		p.tangent = vertices_in[i].tangent;*/
+
+		p.normal = worldMatrix.TransformVector(vertices_in[i].normal);
+		p.tangent = worldMatrix.TransformVector(vertices_in[i].tangent);
 
 		//calculateViewDirectionToo
 		p.viewDirection = Vector3{  m_Camera.origin - p.position.GetXYZ() } ;
@@ -1003,6 +1020,34 @@ void Renderer::Render_w2_Part3()
 
 }
 
+void Renderer::Render_W3_Part1()
+{
+	std::vector<Mesh> meshes_world;
+
+
+	std::vector<Vertex> verts;
+	std::vector<uint32_t> inds;
+	Utils::ParseOBJ("Resources/vehicle.obj", verts, inds);
+	Mesh vehicle;
+	vehicle.vertices = verts;
+	vehicle.indices = inds;
+	Matrix translation = Matrix::CreateTranslation(0, 0, 50);
+	//still gotta look at raytraycer do add the remember part for when updating
+	Matrix rotation = Matrix::CreateRotationY(14);
+	Matrix world = rotation * translation;
+	vehicle.worldMatrix = world;
+	for (int i{}; i < inds.size(); i += 3)
+	{
+		std::vector<Vertex> triangle{ vehicle.vertices[vehicle.indices[i]],vehicle.vertices[vehicle.indices[i + 1]],vehicle.vertices[vehicle.indices[i + 2]] };
+
+		std::vector<Vertex_Out> totalVertices;
+		VertexTransformationFunction(triangle, totalVertices, vehicle.worldMatrix);
+
+		RenderTriangle(totalVertices);
+	}
+
+}
+
 
 void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 {
@@ -1024,18 +1069,17 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 	float totalArea = Vector2::Cross(a, edge);
 
 
-	int minX = std::min(std::min(triangleV1.x, triangleV2.x), triangleV3.x);
-	int minY = std::min(std::min(triangleV1.y, triangleV2.y), triangleV3.y);
-	int maxX = std::max(std::max(triangleV1.x, triangleV2.x), triangleV3.x);
-	int maxY = std::max(std::max(triangleV1.y, triangleV2.y), triangleV3.y);
+	float minX = std::min(std::min(triangleV1.x, triangleV2.x), triangleV3.x);
+	float minY = std::min(std::min(triangleV1.y, triangleV2.y), triangleV3.y);
+	float maxX = std::max(std::max(triangleV1.x, triangleV2.x), triangleV3.x);
+	float maxY = std::max(std::max(triangleV1.y, triangleV2.y), triangleV3.y);
 
 	if (
 		((minX >= 0) && (maxX <= (m_Width - 1))) &&
-		((minY >= 0) && (maxY <= (m_Width - 1)))) {
-
-		for (int px{ minX }; px < maxX; ++px)
+		((minY >= 0) && (maxY <= (m_Height - 1)))) {
+		for (int px{ static_cast<int>(minX) }; px < std::ceil(maxX); ++px)
 		{
-			for (int py{ minY }; py < maxY; ++py)
+			for (int py{ static_cast<int>(minY) }; py < std::ceil(maxY); ++py)
 			{
 				float gradient = px / static_cast<float>(m_Width);
 				gradient += py / static_cast<float>(m_Width);
@@ -1124,7 +1168,8 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 
 
 					//ColorRGB interpolatedColor{ m_pTexture->Sample(interpolatedUV) };
-					ColorRGB interpolatedColor{ m_TukTukTexture->Sample(interpolatedUV) };
+					//ColorRGB interpolatedColor{ m_TukTukTexture->Sample(interpolatedUV) };
+					ColorRGB interpolatedColor{ m_pVehicleTexture->Sample(interpolatedUV) };
 
 					//pos interpolated
 					Vector4 interpolatedPos{
@@ -1142,8 +1187,26 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 					};
 					//Make new vertexOut with all interpolatedValues for shading
 
-					Vertex_Out interpolatedV = { interpolatedPos,finalColor,interpolatedUV,interpolatedNormal,interpolatedTangent,interpolatedViewDir };
-					m_ColorBuffer[curPixel] = interpolatedColor;
+
+
+					//Make TangentSpaceMatrix to use with normalMap
+					Vector3 binormal = Vector3::Cross(interpolatedNormal, interpolatedTangent);
+					Matrix tangentSpaceAxis = Matrix{ interpolatedTangent,binormal,interpolatedNormal,Vector3::Zero };
+					//Sample from normal map like color (slides say sampled in 255 but already sampled in 0-1 here?)
+					ColorRGB interpolatedNormalMap{ m_pVehicleNormals->Sample(interpolatedUV) };
+					Vector3 normalVec{ interpolatedNormalMap.r,interpolatedNormalMap.g,interpolatedNormalMap.b };
+					//multiply with matrix
+					normalVec = tangentSpaceAxis.TransformVector(normalVec);
+					//set to correct range
+					normalVec.Normalize();
+					Vector3 normalRangeVec = { 2.f * normalVec.x - 1.f, 2.f * normalVec.y - 1.f, 2.f * normalVec.z - 1.f };
+					//m_ColorBuffer[curPixel] = interpolatedColor;
+
+					Vertex_Out interpolatedV = { interpolatedPos,interpolatedColor,interpolatedUV,normalRangeVec,interpolatedTangent,interpolatedViewDir };
+
+					//Vertex_Out interpolatedV = { interpolatedPos,interpolatedColor,interpolatedUV,interpolatedNormal,interpolatedTangent,interpolatedViewDir };
+					m_ColorBuffer[curPixel] = PixelShading(interpolatedV);
+
 				}
 
 				finalColor = m_ColorBuffer[curPixel];
@@ -1162,7 +1225,7 @@ void dae::Renderer::RenderTriangle(std::vector<Vertex_Out> newTriangle)
 	
 
 
-Matrix dae::Renderer::MakeWorldViewProjectionMatrix() const
+Matrix dae::Renderer::MakeWorldViewProjectionMatrix(Matrix world) const
 {
 	//WORLD
 
@@ -1187,7 +1250,14 @@ Matrix dae::Renderer::MakeWorldViewProjectionMatrix() const
 	translationTransform = Matrix{};
 	scaleTransform = Matrix{};
 	rotationTransform = Matrix{};*/
-	Matrix end = m_Camera.viewMatrix * m_Camera.projectionMatrix;
+
+
+
+	//Matrix end = m_Camera.viewMatrix * m_Camera.projectionMatrix;
+
+	//test with world
+	Matrix end = world * m_Camera.viewMatrix * m_Camera.projectionMatrix;
+
 	return end;
 }
 
@@ -1199,17 +1269,19 @@ bool Renderer::SaveBufferToImage() const
 ColorRGB Renderer::PixelShading(const Vertex_Out& v)
 {
 	Vector3 lightDirection = { .577f, -.577f, .577f };
-
-
-	//normal should change to interpolated normal?
+	//Lambert
+	ColorRGB lambertDiffuse;
+	Material_Lambert lambert = Material_Lambert(v.color,7);
+	lambertDiffuse =  lambert.Shade(v);
 	
-	float ObservedArea{ Vector3::Dot(v.normal.Normalized(), lightDirection.Normalized() )};
-	/*if (ObservedArea < 0) {
-
-		return ;
-	}*/
+	
+	float ObservedArea{ Vector3::Dot(v.normal.Normalized(), -lightDirection.Normalized() )};
+	ObservedArea = Clamp(ObservedArea, 0.f, 1.f);
 
 	//later switch for obvserved only for example
 
-	return ColorRGB{ ObservedArea,ObservedArea,ObservedArea };
+	//return ColorRGB{ ObservedArea,ObservedArea,ObservedArea };
+	//return lambertDiffuse;
+	return lambertDiffuse * ObservedArea;
+
 }
